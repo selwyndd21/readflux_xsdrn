@@ -1,0 +1,5 @@
+20140630
+Done:
+  Extract flux data for every region and every group.
+Next step:
+  Extract specified column for every line.

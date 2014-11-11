@@ -3,3 +3,12 @@ Done:
   Extract flux data for every region and every group.
 Next step:
   Extract specified column for every line.
+
+20141111
+Done:
+  Extract group data
+  Set the parameters to define Region numbers, Max group data, Min group data.
+  combine all group data into "${case}_prtflux.txt" file
+Next step:
+  Try to sum the flux for one region.
+  Try to couple the format used in SCALE/COUPLE & SCALE/ORIGEN-S

@@ -12,3 +12,20 @@ Done:
 Next step:
   Try to sum the flux for one region.
   Try to couple the format used in SCALE/COUPLE & SCALE/ORIGEN-S
+
+20141113
+Done:
+  Complete Python script to sum up the arrays.
+  Python script has it's own file.
+Next Step:
+  Python numpy can import un-given dimension array.
+  Import total 2-D final results is better.
+
+20141114
+Done:
+  Use Adding.py as independent python script to sum the values.
+  Adding.py could treat any intact 2-D arrays.
+
+Noting:
+  The Version 0.9 is designed to summerize the prtflux table only.
+  Further output format depends on future requirement.

@@ -7,9 +7,18 @@ print "Py: Start Python script"
 print "Py: Python Input: %s    Output: %s & %s." %( sys.argv[1], sys.argv[2], sys.argv[3] )
 RawData = np.loadtxt( sys.argv[1] ,skiprows=1)
 
-print 'Py: Input Data format: {} (regions, group)'.format(RawData.shape)
-AllReg_PerGrp =np.sum(RawData, axis=0) # Find flux spectrum
-AllGrp_PerReg =np.sum(RawData, axis=1) # Find flux distribution
+if RawData.ndim == 1:
+  print "Py: Input array dimension: %d" % RawData.ndim
+  AllReg_PerGrp = np.array( [np.sum(RawData)] )
+  AllGrp_PerReg = RawData.copy()
+elif RawData.ndim == 2:
+  print 'Py: Input Data format: {} (regions numbers, group numbers)'.format(RawData.shape)
+  AllReg_PerGrp = np.sum(RawData, axis=0) # Find flux spectrum
+  AllGrp_PerReg = np.sum(RawData, axis=1) # Find flux distribution
+else:
+  print 'Py: Input Data format: {} (regions numbers, group numbers)'.format(RawData.shape)
+  print "Py: ERROR!, input array dimension > 2"
+  sys.exit(1)
 
 
 np.savetxt( sys.argv[2], AllGrp_PerReg, fmt='%5.3E' )

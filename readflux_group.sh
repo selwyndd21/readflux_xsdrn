@@ -13,9 +13,10 @@
 ####################
 # Default parameters
 ####################
-MinGRP=10
-MaxGRP=15
-MaxRegion=224
+MinGRP=1
+MaxGRP=8
+MaxRegion=450
+iRegion=150
 
 # Locate the readflux_xsdrn.sh
 SCRIPT=`basename ${BASH_SOURCE[0]}`
@@ -31,9 +32,10 @@ function HELP {
   echo -e "${REV}Basic usage:${NORM} ${BOLD}$SCRIPT file.out${NORM}"\\n
   echo "Command line switches are just for demo."
   echo "The following switches are recognized."
-  echo "${REV}-R${NORM}  --Sets the Total Region ${BOLD}\$MaxRegion${NORM}. Default: ${BOLD}224${NORM}."
-  echo "${REV}-M${NORM}  --Sets the Upper Group number ${BOLD}\$MaxGRP${NORM}. Default: ${BOLD}15${NORM}."
-  echo "${REV}-m${NORM}  --Sets the Lower Group number ${BOLD}\$MinGRP${NORM}. Default: ${BOLD}10${NORM}."
+  echo "${REV}-R${NORM}  --Sets the Total Region ${BOLD}\$MaxRegion${NORM}. Default: ${BOLD}${MaxRegion}${NORM}."
+  echo "${REV}-i${NORM}  --Sets the intereseted Region ${BOLD}\$iRegion${NORM}. Default: ${BOLD}${iRegion}${NORM}."
+  echo "${REV}-M${NORM}  --Sets the Upper Group number ${BOLD}\$MaxGRP${NORM}. Default: ${BOLD}${MaxGRP}${NORM}."
+  echo "${REV}-m${NORM}  --Sets the Lower Group number ${BOLD}\$MinGRP${NORM}. Default: ${BOLD}${MinGRP}${NORM}."
   echo -e "${REV}-h${NORM}  --Displays this help message. No further functions are performed."\\n
   echo -e "Example: ${BOLD}$SCRIPT -R 513 -M 17 -m 10 file.out${NORM}"\\n
   exit 1
@@ -51,7 +53,7 @@ fi
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 # Read Options and Parameters Section:
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-while getopts ":M:m:R:h" opt; do
+while getopts ":M:m:R:i:h" opt; do
   case $opt in
     M)
       MaxGRP=${OPTARG}
@@ -64,6 +66,10 @@ while getopts ":M:m:R:h" opt; do
     R)
       MaxRegion=${OPTARG}
       #echo "Region Numbers: $MaxRegion."
+      ;;
+    i)
+      iRegion=${OPTARG}
+      #echo "Interested Region: $iRegion."
       ;;
     \?)
       echo "Invalid option: -$OPTARG"
@@ -108,12 +114,12 @@ if ! [[ ${MinGRP} =~ ^-?[!0-9]+$ ]]; then
   exit 2
 fi
 if [[ ${MaxGRP} -lt ${MinGRP} ]]; then
-  echo "Invalid MaxGRP=$MaxGRP < MinGRP=${MinGRP}."
+  echo "Invalid parameters! MaxGRP=$MaxGRP < MinGRP=${MinGRP}."
   exit 2
 fi
-# Check MaxRegion iRegion IRegion
-if ! [[ $MaxRegion =~ ^-?[!0-9]+$ ]]; then
-  echo "MaxRegion=${MaxRegion} for -R is not integer!"
+# Check MaxRegion iRegion
+if ! [[ $MaxRegion =~ ^-?[!0-9]+$ || $iRegion =~ ^-?[!0-9]+$ ]]; then
+  echo "MaxRegion=${MaxRegion} iRegion=${iRegion} for -R is not integer!"
   exit 2
 fi
 
@@ -147,20 +153,25 @@ for (( inputcount=0; inputcount<$length; inputcount++ )) ; do
     echo "!!!WARN: ${case}_prtflux.txt exist. It will be overwrited!!!"
     rm ${case}_prtflux.txt
   fi
+  if [[ -f "tmp_py_Region${iRegion}" ]]; then 
+    rm tmp_py_Region${iRegion}
+  fi
+  if [[ -f "tmp_Region${iRegion}" ]]; then 
+    rm tmp_Region${iRegion}
+  fi
 
   echo "Scratch flux for regions: $inputfile -> tmp_prtflux_table"
   #print lines from "^  total flux" to "^   elapsed time" to file tmp_prtflux_table
   sed -n '/^  total flux/,/^   elapsed time/p' $inputfile > tmp_prtflux_table
+  # change group title. ex grp.  9 --> grp.9
+  sed -i "s/grp\.\s\+/grp\./g" tmp_prtflux_table
 
 
   for (( Egroup=$MinGRP; Egroup<=$MaxGRP; Egroup++ )) ; do
     
     echo "  Scratch flux for Group $Egroup : tmp_prtflux_table -> tmp_Egroup"
     #print lines for #-group for all region into file tmp_Egroup
-    sed -n "/grp\.\s\+$Egroup/,+$MaxRegion p" tmp_prtflux_table > tmp_Egroup
-  
-    # change group title. ex grp.  9 --> grp.9
-    sed -i "s/grp\.\s\+/grp\./g" tmp_Egroup
+    sed -n "/grp\.${Egroup}/,+${MaxRegion}p" tmp_prtflux_table | head -n $(($MaxRegion + 1)) > tmp_Egroup
   
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 # Column Seeker:
@@ -189,7 +200,7 @@ for (( inputcount=0; inputcount<$length; inputcount++ )) ; do
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-# Seperating Columns section:
+# Columns seperation and selection:
 # seperate each line into columns, and locate Group $Egroup data with $ColumnCount.
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     ##########
@@ -198,23 +209,24 @@ for (( inputcount=0; inputcount<$length; inputcount++ )) ; do
       echo "!!!WARN: File ${case}_grp_${Egroup} exists. It will be overwrited!!!"
       rm ${case}_grp_${Egroup}
     fi
-    if [[ -f "${case}_RN" ]];
-    then 
+    if [[ -f "${case}_RN" ]]; then 
       rm ${case}_RN
     fi
   
-    i=0
     while read LINE # seperate each line into columns
     do
       COLS=( $LINE ); # parses columns without executing a subshell
       echo "${COLS[0]}" >> ${case}_RN
       echo "${COLS[$ColumnCount]}" >> ${case}_grp_${Egroup}
-      i=$((i+1))
+      # extract interest flux for every group
+      if [[ ${COLS[0]} == $iRegion ]]; then
+        echo -e "${Egroup}\t${COLS[$ColumnCount]}" | expand >> tmp_Region${iRegion}
+        echo "${COLS[$ColumnCount]}" >> tmp_py_Region${iRegion}
+      fi
     done < tmp_Egroup
-    RegionCounter=$((i)) 
-    echo "  There are $RegionCounter lines in tmp_Egroup"
+#    echo "  There are ${COLS[0]} lines in tmp_Egroup"
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-# Seperating Columns section.
+# Columns seperation and selection:
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -242,20 +254,77 @@ for (( inputcount=0; inputcount<$length; inputcount++ )) ; do
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 # Flux summary
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-  if [[ $MinGRP < $MaxGRP ]]; then
-    ##########
-    # WARNING code: remove esisting group data file
-    if [[ -f "${case}_py_TotalFlux" ]]; then 
-      echo "!!!WARN: File '${case}_py_TotalFlux.txt' exists. It will be overwrited!!!"
-    fi
-
-    inp1=${case}_py_prtflux.txt
-    inp2=${case}_AllGrp_PerReg.txt
-    out3=${case}_AllReg_PerGrp.txt
-    python $ScriptDir/Adding.py $inp1 $inp2 $out3
+  ##########
+  # WARNING code: remove esisting group data file
+  if [[ -f "${case}_py_TotalFlux" ]]; then 
+    echo "!!!WARN: File '${case}_py_TotalFlux.txt' exists. It will be overwrited!!!"
   fi
+
+  echo "Flux summary"
+  inp1=${case}_py_prtflux.txt
+  out2=${case}_AllGrp_PerReg.txt # Flux distribution
+  out3=${case}_AllReg_PerGrp.txt # Flux spectrum Useless!!!!
+  python $ScriptDir/Adding.py $inp1 $out2 $out3
+  rm $out3
+  
+# # pure bash style, with no external processes (for speed)
+# echo "-->Arrange Flux spectrum for SCALE/COUPLE"
+# while true ; do
+#   out=()
+#   for (( i=0; i<5; i++ )) ; do
+#     read && out+=( "$REPLY" )
+#   done
+#   if (( ${#out[@]} > 0 )); then
+#     printf '  %s' "${out[@]}"
+#     echo
+#   fi
+#   if (( ${#out[@]} < 5 )); then 
+#   break; 
+#   fi
+# done <${case}_AllGrp_PerReg.txt >${case}_Card9.txt
+# 
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # Flux summary
+# Arrange flux format for SCALE/COUPLE & SCALE/ORIGEN-S
+#<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# Arrange flux for SCALE/COUPLE & SCALE/ORIGEN-S in intereste $iRegion 
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  # Formatting the ${case}_Intensity
+  echo "-->Arrange Flux Intensity for SCALE/ORIGEN-S"
+  echo -e "grp.\tRegionFlux" > tmp_RegionName
+  cat tmp_RegionName tmp_Region${iRegion} > ${case}_Region${iRegion}
+  echo -e "RegionFlux" > tmp_py_RegionName
+  cat tmp_py_RegionName tmp_py_Region${iRegion} > ${case}_py_Region${iRegion}
+  echo "-->Arrange Source Intensity for SCALE/ORIGEN-S"
+  inp1=${case}_py_Region${iRegion} # Flux distribution
+  out2=dump
+  out3=${case}_Intensity.txt # Source Intensity 
+  python $ScriptDir/Adding.py $inp1 $out2 $out3
+  rm dump
+
+  # Formatting the ${case}_py_Region${iRegion}
+  # pure bash style, with no external processes (for speed)
+  echo "-->Arrange Flux spectrum for SCALE/COUPLE"
+  while true ; do
+    out=()
+    for (( i=0; i<7; i++ )) ; do
+      read && out+=( "$REPLY" )
+    done
+    if (( ${#out[@]} > 0 )); then
+      printf ' %s' "${out[@]}"
+      echo
+    fi
+    if (( ${#out[@]} < 5 )); then 
+    break; 
+    fi
+  done <tmp_py_Region${iRegion} >${case}_Card9.txt
+  
+  rm tmp_RegionName tmp_Region${iRegion} tmp_py_RegionName tmp_py_Region${iRegion}
+#<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# Arrange flux for SCALE/COUPLE & SCALE/ORIGEN-S in intereste $iRegion 
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 done
 

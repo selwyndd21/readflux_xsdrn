@@ -14,8 +14,8 @@
 # Default parameters
 ####################
 MinGRP=1
-MaxGRP=8
-MaxRegion=450
+MaxGRP=238
+MaxRegion=400
 iRegion=150
 
 # Locate the readflux_xsdrn.sh
@@ -160,11 +160,58 @@ for (( inputcount=0; inputcount<$length; inputcount++ )) ; do
     rm tmp_Region${iRegion}
   fi
 
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# Extract and Recover raw data in prtflux section 
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
   echo "Scratch flux for regions: $inputfile -> tmp_prtflux_table"
   #print lines from "^  total flux" to "^   elapsed time" to file tmp_prtflux_table
   sed -n '/^  total flux/,/^   elapsed time/p' $inputfile > tmp_prtflux_table
   # change group title. ex grp.  9 --> grp.9
   sed -i "s/grp\.\s\+/grp\./g" tmp_prtflux_table
+  # find line number with "same as above"
+  grep -nr "same as above" tmp_prtflux_table | cut -d : -f 1 > tmp_Numer
+  Numer=()
+  i=0
+  while read line; do
+    Numer[i]=$line # Put it into the array
+    i=$(($i + 1))
+  done < tmp_Numer
+  rm tmp_Numer
+  
+  echo "Retreaving Line numbers: ${Numer[@]}."
+  repeat=0
+  normal=1
+  i=0
+  lNumer=0
+  while read line; do
+    lNumer=$(($lNumer + 1))
+    if [[ ${Numer[i]} == $lNumer ]] ; then
+      COLS=( $line );
+      Firstline=${COLS[1]}
+      Lastline=${COLS[4]}
+#     echo "Line: $lNumer copy from $Firstline to $Lastline"
+      repeat=$(( ${Lastline} - ${Firstline} + 2 ))
+      normal=0
+      i=$(($i + 1))
+    elif [[ $normal == 0 && $repeat > 0 ]] ; then
+      COLS=( $line );
+      for (( ; repeat> 0 ; repeat-- )) ; do 
+        printf "%s%13s%13s%13s%13s%13s%13s%13s%13s\n" \
+          "$(( ${Lastline} - ${repeat} + 2 ))" \
+          "${COLS[1]}" "${COLS[2]}" "${COLS[3]}" "${COLS[4]}" \
+          "${COLS[5]}" "${COLS[6]}" "${COLS[7]}" "${COLS[8]}" >> new_prtflux_table 
+      done
+      repeat=0
+      normal=1
+    elif [[ $normal == 1 ]] ; then 
+      echo "$line" >> new_prtflux_table
+      repeat=0
+    fi
+  done < tmp_prtflux_table
+  mv new_prtflux_table tmp_prtflux_table
+#<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# Recover raw data in prtflux section 
+#<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 
   for (( Egroup=$MinGRP; Egroup<=$MaxGRP; Egroup++ )) ; do
@@ -267,22 +314,6 @@ for (( inputcount=0; inputcount<$length; inputcount++ )) ; do
   python $ScriptDir/Adding.py $inp1 $out2 $out3
   rm $out3
   
-# # pure bash style, with no external processes (for speed)
-# echo "-->Arrange Flux spectrum for SCALE/COUPLE"
-# while true ; do
-#   out=()
-#   for (( i=0; i<5; i++ )) ; do
-#     read && out+=( "$REPLY" )
-#   done
-#   if (( ${#out[@]} > 0 )); then
-#     printf '  %s' "${out[@]}"
-#     echo
-#   fi
-#   if (( ${#out[@]} < 5 )); then 
-#   break; 
-#   fi
-# done <${case}_AllGrp_PerReg.txt >${case}_Card9.txt
-# 
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # Flux summary
 # Arrange flux format for SCALE/COUPLE & SCALE/ORIGEN-S
@@ -298,7 +329,6 @@ for (( inputcount=0; inputcount<$length; inputcount++ )) ; do
   cat tmp_RegionName tmp_Region${iRegion} > ${case}_Region${iRegion}
   echo -e "RegionFlux" > tmp_py_RegionName
   cat tmp_py_RegionName tmp_py_Region${iRegion} > ${case}_py_Region${iRegion}
-  echo "-->Arrange Source Intensity for SCALE/ORIGEN-S"
   inp1=${case}_py_Region${iRegion} # Flux distribution
   out2=dump
   out3=${case}_Intensity.txt # Source Intensity 
@@ -329,4 +359,3 @@ for (( inputcount=0; inputcount<$length; inputcount++ )) ; do
 done
 
 exit
-

@@ -1,3 +1,10 @@
+Version 1.0
+===========
+Output *_Card9.txt to collapse cross section for SCALE/COUPLE.
+Output *_Region#.txt to burn materials for SCALE/ORIGEN-S.
+
+
+
 20140630
 Done:
   Extract flux data for every region and every group.
@@ -29,3 +36,9 @@ Done:
 Noting:
   The Version 0.9 is designed to summerize the prtflux table only.
   Further output format depends on future requirement.
+
+Version 0.9
+===========
+This version has completed processing the output flux in every region for every group in xsdrn prtflux table.
+However, Version 0.9 is only designed to summerize the prtflux table only.
+Further output format depends on future requirement.

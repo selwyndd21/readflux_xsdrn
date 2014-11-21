@@ -15,29 +15,26 @@
 ####################
 MinGRP=1
 MaxGRP=238
-MaxRegion=400
-iRegion=150
+MaxRegion=450
+iRegion=271
 
 # Locate the readflux_xsdrn.sh
 SCRIPT=`basename ${BASH_SOURCE[0]}`
 ScriptDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 #Set fonts for Help.
-NORM=`tput sgr0`
-BOLD=`tput bold`
-REV=`tput smso`
 #Help function
 function HELP {
-  echo -e "Help documentation for ${BOLD}${SCRIPT}.${NORM}"\\n
-  echo -e "${REV}Basic usage:${NORM} ${BOLD}$SCRIPT file.out${NORM}"\\n
+  echo -e "Help documentation for ${SCRIPT}."\\n
+  echo -e "Basic usage: $SCRIPT file.out"\\n
   echo "Command line switches are just for demo."
   echo "The following switches are recognized."
-  echo "${REV}-R${NORM}  --Sets the Total Region ${BOLD}\$MaxRegion${NORM}. Default: ${BOLD}${MaxRegion}${NORM}."
-  echo "${REV}-i${NORM}  --Sets the intereseted Region ${BOLD}\$iRegion${NORM}. Default: ${BOLD}${iRegion}${NORM}."
-  echo "${REV}-M${NORM}  --Sets the Upper Group number ${BOLD}\$MaxGRP${NORM}. Default: ${BOLD}${MaxGRP}${NORM}."
-  echo "${REV}-m${NORM}  --Sets the Lower Group number ${BOLD}\$MinGRP${NORM}. Default: ${BOLD}${MinGRP}${NORM}."
-  echo -e "${REV}-h${NORM}  --Displays this help message. No further functions are performed."\\n
-  echo -e "Example: ${BOLD}$SCRIPT -R 513 -M 17 -m 10 file.out${NORM}"\\n
+  echo "-R  --Sets the Total Region \$MaxRegion. Default: ${MaxRegion}."
+  echo "-i  --Sets the intereseted Region \$iRegion. Default: ${iRegion}."
+  echo "-M  --Sets the Upper Group number \$MaxGRP. Default: ${MaxGRP}."
+  echo "-m  --Sets the Lower Group number \$MinGRP. Default: ${MinGRP}."
+  echo -e "-h  --Displays this help message. No further functions are performed."\\n
+  echo -e "Example: $SCRIPT -R 513 -M 17 -m 10 file.out"\\n
   exit 1
 }
 
@@ -46,7 +43,9 @@ function HELP {
 ####################
 opt=$#
 if [ $opt -eq 0 ]; then
-  echo "ERROR: No parameters nor inputs. Noting should be down!"
+  echo "ERROR: No parameters nor inputs. Noting should be done!"
+  echo
+  HELP
   exit 2
 fi
 
@@ -81,7 +80,7 @@ while getopts ":M:m:R:i:h" opt; do
       ;;
     :)
       echo " -$OPTARG requires an argument."
-      echo -e "Use ${BOLD}$SCRIPT -h${NORM} to see the help documentation."\\n
+      echo -e "Use $SCRIPT -h to see the help documentation."\\n
       exit 2
       ;;
   esac
@@ -178,7 +177,7 @@ for (( inputcount=0; inputcount<$length; inputcount++ )) ; do
   done < tmp_Numer
   rm tmp_Numer
   
-  echo "Retreaving Line numbers: ${Numer[@]}."
+  echo "Retrieving Line numbers: ${Numer[@]}."
   repeat=0
   normal=1
   i=0
@@ -216,7 +215,8 @@ for (( inputcount=0; inputcount<$length; inputcount++ )) ; do
 
   for (( Egroup=$MinGRP; Egroup<=$MaxGRP; Egroup++ )) ; do
     
-    echo "  Scratch flux for Group $Egroup : tmp_prtflux_table -> tmp_Egroup"
+#    echo "  Scratch flux for Group $Egroup : tmp_prtflux_table -> tmp_Egroup"
+    echo "  Scratch flux for Group $Egroup"
     #print lines for #-group for all region into file tmp_Egroup
     sed -n "/grp\.${Egroup}/,+${MaxRegion}p" tmp_prtflux_table | head -n $(($MaxRegion + 1)) > tmp_Egroup
   
@@ -234,7 +234,7 @@ for (( inputcount=0; inputcount<$length; inputcount++ )) ; do
         break
       fi
     done
-    echo "  Group $Egroup data is located at Column $ColumnCount."
+#    echo "  Group $Egroup data is located at Column $ColumnCount."
     ##########
     # ERROR code: Column number is incorrect
     ##########
@@ -287,9 +287,10 @@ for (( inputcount=0; inputcount<$length; inputcount++ )) ; do
       # Renew RawData for total flux summation in Python script
       paste ${case}_py_prtflux.txt ${case}_grp_${Egroup} | expand > tmp_prtflux
       mv tmp_prtflux ${case}_py_prtflux.txt
+      rm ${case}_grp_${Egroup}
     else
       paste ${case}_RN ${case}_grp_${Egroup} | expand > ${case}_prtflux.txt
-      cp ${case}_grp_${Egroup} ${case}_py_prtflux.txt  # Creat RawData for total flux summation in Python script
+      mv ${case}_grp_${Egroup} ${case}_py_prtflux.txt  # Creat RawData for total flux summation in Python script
     fi
 
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
